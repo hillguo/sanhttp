@@ -8,7 +8,7 @@ import (
 func main() {
 	app := sanhttp.Default()
 	app.GET("/", echo)
-	app.Run("127.0.0.1:1234")
+	app.Run("0.0.0.0:1234")
 }
 
 func echo(c *ctx.Context) {

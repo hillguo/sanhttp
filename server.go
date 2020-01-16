@@ -25,23 +25,12 @@ var (
 	defaultAppEngine bool
 )
 
-
-
-
 // Engine is the framework's instance, it contains the muxer, middleware and configuration settings.
 // Create an instance of Engine, by using New() or Default()
 type Engine struct {
 	RouterGroup
 
-	trees            router.MethodTrees
-
-	// If enabled, the router checks if another method is allowed for the
-	// current route, if the current request can not be routed.
-	// If this is the case, the request is answered with 'Method Not Allowed'
-	// and HTTP status code 405.
-	// If no other Method is allowed, the request is delegated to the NotFound
-	// handler.
-	HandleMethodNotAllowed bool
+	trees router.MethodTrees
 
 	// If enabled, the url.RawPath will be used to find parameters.
 	UseRawPath bool
@@ -55,19 +44,16 @@ type Engine struct {
 	// method call.
 	MaxMultipartMemory int64
 
-	allNoRoute       ctx.HandlersChain
-	allNoMethod      ctx.HandlersChain
-	noRoute          ctx.HandlersChain
-	noMethod         ctx.HandlersChain
+	allNoRoute  ctx.HandlersChain
+	allNoMethod ctx.HandlersChain
+	noRoute     ctx.HandlersChain
+	noMethod    ctx.HandlersChain
 }
 
 var _ IRouter = &Engine{}
 
 // New returns a new blank Engine instance without any middleware attached.
 // By default the configuration is:
-// - RedirectTrailingSlash:  true
-// - RedirectFixedPath:      false
-// - HandleMethodNotAllowed: false
 // - ForwardedByClientIP:    true
 // - UseRawPath:             false
 // - UnescapePathValues:     true
@@ -78,11 +64,8 @@ func New() *Engine {
 			basePath: "/",
 			root:     true,
 		},
-		HandleMethodNotAllowed: false,
-		UseRawPath:             false,
-		UnescapePathValues:     true,
-		MaxMultipartMemory:     defaultMultipartMemory,
-		trees:                  make(router.MethodTrees, 0, 9),
+		MaxMultipartMemory: defaultMultipartMemory,
+		trees:              make(router.MethodTrees, 0, 9),
 	}
 	engine.RouterGroup.engine = engine
 	return engine
@@ -94,7 +77,6 @@ func Default() *Engine {
 	engine.Use(middleware.Logger(), middleware.Recovery())
 	return engine
 }
-
 
 // NoRoute adds handlers for NoRoute. It return a 404 code by default.
 func (engine *Engine) NoRoute(handlers ...ctx.HandlerFunc) {
@@ -136,13 +118,11 @@ func (engine *Engine) addRoute(method, path string, handlers ctx.HandlersChain) 
 	root.AddRoute(path, handlers)
 }
 
-
-
 // Run attaches the router to a http.Server and starts listening and serving HTTP requests.
 // It is a shortcut for http.ListenAndServe(addr, router)
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
 func (engine *Engine) Run(addr ...string) (err error) {
-	defer func() {  }()
+	defer func() {}()
 
 	address := utils.ResolveAddress(addr)
 	log.Printf("Listening and serving HTTP on %s\n", address)
@@ -199,8 +179,8 @@ func (engine *Engine) RunFd(fd int) (err error) {
 // ServeHTTP conforms to the http.Handler interface.
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c := &ctx.Context{
-		Index:-1,
-		Err:&errs.Error{},
+		Index: -1,
+		Err:   &errs.Error{},
 	}
 
 	c.Request = req
@@ -210,16 +190,10 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 }
 
-
 func (engine *Engine) handleHTTPRequest(c *ctx.Context) {
 	httpMethod := c.Request.Method
 	rPath := c.Request.URL.Path
 	unescape := false
-	if engine.UseRawPath && len(c.Request.URL.RawPath) > 0 {
-		rPath = c.Request.URL.RawPath
-		unescape = engine.UnescapePathValues
-	}
-	rPath = utils.CleanPath(rPath)
 
 	// Find root of the tree for the given HTTP method
 	t := engine.trees
@@ -241,17 +215,5 @@ func (engine *Engine) handleHTTPRequest(c *ctx.Context) {
 		break
 	}
 
-	if engine.HandleMethodNotAllowed {
-		for _, tree := range engine.trees {
-			if tree.Method == httpMethod {
-				continue
-			}
-			if value := tree.ROOT.GetValue(rPath, nil, unescape); value.Handlers != nil {
-				c.Handlers = engine.allNoMethod
-				return
-			}
-		}
-	}
 	c.Handlers = engine.allNoRoute
 }
-
