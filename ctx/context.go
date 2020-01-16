@@ -19,10 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hillguo/sanhttp/binding"
 	"github.com/hillguo/sanhttp/render"
 )
-
 
 // HandlerFunc defines the handler used by gin middleware as return value.
 type HandlerFunc func(*Context)
@@ -46,12 +44,11 @@ const defaultMultipartMemory = 32 << 20 // 32 MB
 type Context struct {
 	context.Context
 	Request *http.Request
-	Writer http.ResponseWriter
+	Writer  http.ResponseWriter
 
 	Handlers HandlersChain
 	Index    int8
 	fullPath string
-
 
 	Params Params
 	// Keys is a key/value pair exclusively for the context of each request.
@@ -64,10 +61,6 @@ type Context struct {
 /************************************/
 /********** CONTEXT CREATION ********/
 /************************************/
-
-
-
-
 
 // Handler returns the main handler.
 func (c *Context) Handler() HandlerFunc {
@@ -133,11 +126,9 @@ func (c *Context) AbortWithStatusJSON(code int, jsonObj interface{}) {
 // AbortWithError calls `AbortWithStatus()` and `Error()` internally.
 // This method stops the chain, writes the status code and pushes the specified error to `c.Errors`.
 // See Context.Error() for more details.
-func (c *Context) AbortWithError(code int, err error)  {
+func (c *Context) AbortWithError(code int, err error) {
 	c.AbortWithStatus(code)
 }
-
-
 
 /************************************/
 /******** METADATA MANAGEMENT********/
@@ -258,7 +249,6 @@ func (c *Context) GetStringMapStringSlice(key string) (smss map[string][]string)
 //         id := c.Param("id") // id == "john"
 //     })
 
-
 // Query returns the keyed url query value if it exists,
 // otherwise it returns an empty string `("")`.
 // It is shortcut for `c.Request.URL.Query().Get(key)`
@@ -308,12 +298,10 @@ func (c *Context) QueryArray(key string) []string {
 	return values
 }
 
-
-
 // GetQueryArray returns a slice of strings for a given query key, plus
 // a boolean value whether at least one value exists for the given key.
 func (c *Context) GetQueryArray(key string) ([]string, bool) {
-	params,_ :=url.ParseQuery(c.Request.URL.RawQuery)
+	params, _ := url.ParseQuery(c.Request.URL.RawQuery)
 	if values, ok := params[key]; ok && len(values) > 0 {
 		return values, true
 	}
@@ -355,74 +343,6 @@ func (c *Context) SaveUploadedFile(file *multipart.FileHeader, dst string) error
 	return err
 }
 
-// Bind checks the Content-Type to select a binding engine automatically,
-// Depending the "Content-Type" header different bindings are used:
-//     "application/json" --> JSON binding
-//     "application/xml"  --> XML binding
-// otherwise --> returns an error.
-// It parses the request's body as JSON if Content-Type == "application/json" using JSON or XML as a JSON input.
-// It decodes the json payload into the struct specified as a pointer.
-// It writes a 400 error and sets Content-Type header "text/plain" in the response if input is not valid.
-func (c *Context) Bind(obj interface{}) error {
-	b := binding.Default(c.Request.Method, c.ContentType())
-	return c.MustBindWith(obj, b)
-}
-
-// BindJSON is a shortcut for c.MustBindWith(obj, binding.JSON).
-func (c *Context) BindJSON(obj interface{}) error {
-	return c.MustBindWith(obj, binding.JSON)
-}
-
-
-// MustBindWith binds the passed struct pointer using the specified binding engine.
-// It will abort the request with HTTP 400 if any error occurs.
-// See the binding package.
-func (c *Context) MustBindWith(obj interface{}, b binding.Binding) error {
-	if err := c.ShouldBindWith(obj, b); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err) // nolint: errcheck
-		return err
-	}
-	return nil
-}
-
-// ShouldBind checks the Content-Type to select a binding engine automatically,
-// Depending the "Content-Type" header different bindings are used:
-//     "application/json" --> JSON binding
-//     "application/xml"  --> XML binding
-// otherwise --> returns an error
-// It parses the request's body as JSON if Content-Type == "application/json" using JSON or XML as a JSON input.
-// It decodes the json payload into the struct specified as a pointer.
-// Like c.Bind() but this method does not set the response status code to 400 and abort if the json is not valid.
-func (c *Context) ShouldBind(obj interface{}) error {
-	b := binding.Default(c.Request.Method, c.ContentType())
-	return c.ShouldBindWith(obj, b)
-}
-
-// ShouldBindJSON is a shortcut for c.ShouldBindWith(obj, binding.JSON).
-func (c *Context) ShouldBindJSON(obj interface{}) error {
-	return c.ShouldBindWith(obj, binding.JSON)
-}
-
-// ShouldBindXML is a shortcut for c.ShouldBindWith(obj, binding.XML).
-func (c *Context) ShouldBindXML(obj interface{}) error {
-	return c.ShouldBindWith(obj, binding.XML)
-}
-
-// ShouldBindQuery is a shortcut for c.ShouldBindWith(obj, binding.Query).
-func (c *Context) ShouldBindQuery(obj interface{}) error {
-	return c.ShouldBindWith(obj, binding.Query)
-}
-
-
-
-// ShouldBindWith binds the passed struct pointer using the specified binding engine.
-// See the binding package.
-func (c *Context) ShouldBindWith(obj interface{}, b binding.Binding) error {
-	return b.Bind(c.Request, obj)
-}
-
-
-
 // ClientIP implements a best effort algorithm to return the real client IP, it parses
 // X-Real-IP and X-Forwarded-For in order to work properly with reverse-proxies such us: nginx or haproxy.
 // Use X-Forwarded-For before X-Real-Ip as nginx uses X-Real-Ip with the proxy's IP.
@@ -436,7 +356,6 @@ func (c *Context) ClientIP() string {
 	if clientIP != "" {
 		return clientIP
 	}
-
 
 	if ip, _, err := net.SplitHostPort(strings.TrimSpace(c.Request.RemoteAddr)); err == nil {
 		return ip
@@ -551,8 +470,6 @@ func (c *Context) Render(code int, r render.Render) {
 	}
 }
 
-
-
 // IndentedJSON serializes the given struct as pretty JSON (indented + endlines) into the response body.
 // It also sets the Content-Type as "application/json".
 // WARNING: we recommend to use this only for development purposes since printing pretty JSON is
@@ -561,21 +478,17 @@ func (c *Context) IndentedJSON(code int, obj interface{}) {
 	c.Render(code, render.IndentedJSON{Data: obj})
 }
 
-
 // JSON serializes the given struct as JSON into the response body.
 // It also sets the Content-Type as "application/json".
 func (c *Context) JSON(code int, obj interface{}) {
 	c.Render(code, render.JSON{Data: obj})
 }
 
-
-
 // PureJSON serializes the given struct as JSON into the response body.
 // PureJSON, unlike JSON, does not replace special html characters with their unicode entities.
 func (c *Context) PureJSON(code int, obj interface{}) {
 	c.Render(code, render.PureJSON{Data: obj})
 }
-
 
 // ProtoBuf serializes the given struct as ProtoBuf into the response body.
 func (c *Context) ProtoBuf(code int, obj interface{}) {
@@ -604,7 +517,6 @@ func (c *Context) Data(code int, contentType string, data []byte) {
 	})
 }
 
-
 // File writes the specified file into the body stream in a efficient way.
 func (c *Context) File(filepath string) {
 	http.ServeFile(c.Writer, c.Request, filepath)
@@ -625,4 +537,3 @@ func filterFlags(content string) string {
 	}
 	return content
 }
-
