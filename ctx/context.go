@@ -7,7 +7,6 @@ package ctx
 import (
 	"context"
 	"fmt"
-	"github.com/hillguo/sanhttp/errs"
 	"io"
 	"io/ioutil"
 	"math"
@@ -19,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hillguo/sanhttp/errs"
 	"github.com/hillguo/sanhttp/render"
 )
 
