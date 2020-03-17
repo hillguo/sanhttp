@@ -50,12 +50,51 @@ type Context struct {
 	Index    int8
 	fullPath string
 
-	Params Params
 	// Keys is a key/value pair exclusively for the context of each request.
 	Keys map[string]interface{}
 
 	// Errors is a list of errors attached to all the handlers/middlewares who used this context.
 	Err *errs.Error
+
+
+	frameType FrameType
+
+}
+
+type HTTPBody struct {
+	Header *errs.Error  `json:"header,omitempty"`
+	Param_ *Param		`json:"param,omitempty"`
+	Data interface{}    `json:"data,omitempty"`
+}
+
+type Param struct {
+	RequestTime uint64  `json:"request_time,omitempty"`
+	LogicsvrIP string   `json:"logicsvrip,omitempty"`
+	CostTime uint32		`json:"cost_time,omitempty"`
+}
+
+type FrameType uint32
+
+const (
+	RawFrame FrameType = iota
+	JSONFrame
+	ProtoBufFrame
+)
+
+func (c *Context) SetRawFrame(){
+	c.frameType = RawFrame
+}
+
+func (c *Context) SetJSONFrame(){
+	c.frameType = JSONFrame
+}
+
+func (c *Context) SetPBFrame(){
+	c.frameType = ProtoBufFrame
+}
+
+func (c *Context) GetFrameType() FrameType{
+	return c.frameType
 }
 
 /************************************/
@@ -65,19 +104,6 @@ type Context struct {
 // Handler returns the main handler.
 func (c *Context) Handler() HandlerFunc {
 	return c.Handlers.Last()
-}
-
-// FullPath returns a matched route full path. For not found routes
-// returns an empty string.
-//     router.GET("/user/:id", func(c *gin.Context) {
-//         c.FullPath() == "/user/:id" // true
-//     })
-func (c *Context) FullPath() string {
-	return c.fullPath
-}
-
-func (c *Context) SetFullPath(path string) {
-	c.fullPath = path
 }
 
 /************************************/

@@ -10,7 +10,6 @@ import (
 	"github.com/hillguo/sanhttp/errs"
 	"github.com/hillguo/sanhttp/middleware"
 	"github.com/hillguo/sanhttp/router"
-	"github.com/hillguo/sanhttp/utils"
 	"log"
 	"net"
 	"net/http"
@@ -20,131 +19,111 @@ import (
 const defaultMultipartMemory = 32 << 20 // 32 MB
 
 var (
-	default404Body   = []byte("404 page not found")
-	default405Body   = []byte("405 method not allowed")
-	defaultAppEngine bool
+	default404Body = "404 page not found"
 )
 
-// Engine is the framework's instance, it contains the muxer, middleware and configuration settings.
-// Create an instance of Engine, by using New() or Default()
-type Engine struct {
+func noRoute(c *ctx.Context) {
+	c.String(404, default404Body)
+}
+
+// server is the framework's instance, it contains the muxer, middleware and configuration settings.
+// Create an instance of server, by using New() or Default()
+type HttpServer struct {
 	RouterGroup
 
-	trees router.MethodTrees
-
-	// If enabled, the url.RawPath will be used to find parameters.
-	UseRawPath bool
-
-	// If true, the path value will be unescaped.
-	// If UseRawPath is false (by default), the UnescapePathValues effectively is true,
-	// as url.Path gonna be used, which is already unescaped.
-	UnescapePathValues bool
+	route *route.Route
 
 	// Value of 'maxMemory' param that is given to http.Request's ParseMultipartForm
 	// method call.
 	MaxMultipartMemory int64
 
-	allNoRoute  ctx.HandlersChain
-	allNoMethod ctx.HandlersChain
-	noRoute     ctx.HandlersChain
-	noMethod    ctx.HandlersChain
+	noRoute  ctx.HandlersChain
+	noMethod ctx.HandlersChain
 }
 
-var _ IRouter = &Engine{}
-
-// New returns a new blank Engine instance without any middleware attached.
-// By default the configuration is:
-// - ForwardedByClientIP:    true
-// - UseRawPath:             false
-// - UnescapePathValues:     true
-func New() *Engine {
-	engine := &Engine{
+func New() *HttpServer {
+	server := &HttpServer{
 		RouterGroup: RouterGroup{
 			Handlers: nil,
 			basePath: "/",
 			root:     true,
 		},
 		MaxMultipartMemory: defaultMultipartMemory,
-		trees:              make(router.MethodTrees, 0, 9),
+		route:              route.DefaultRoute,
+		noRoute:            ctx.HandlersChain{noRoute},
 	}
-	engine.RouterGroup.engine = engine
-	return engine
+	server.RouterGroup.server = server
+	return server
 }
 
-// Default returns an Engine instance with the Logger and Recovery middleware already attached.
-func Default() *Engine {
-	engine := New()
-	engine.Use(middleware.Logger(), middleware.Recovery())
-	return engine
+// Default returns an server instance with the Logger and Recovery middleware already attached.
+func Default() *HttpServer {
+	server := New()
+	server.Use(middleware.Logger(), middleware.Recovery())
+	return server
 }
 
 // NoRoute adds handlers for NoRoute. It return a 404 code by default.
-func (engine *Engine) NoRoute(handlers ...ctx.HandlerFunc) {
-	engine.noRoute = handlers
-	engine.rebuild404Handlers()
+func (server *HttpServer) NoRoute(handlers ...ctx.HandlerFunc) {
+	server.noRoute = handlers
+	server.rebuild404Handlers()
 }
 
 // NoMethod sets the handlers called when... TODO.
-func (engine *Engine) NoMethod(handlers ...ctx.HandlerFunc) {
-	engine.noMethod = handlers
-	engine.rebuild405Handlers()
+func (server *HttpServer) NoMethod(handlers ...ctx.HandlerFunc) {
+	server.noMethod = handlers
+	server.rebuild405Handlers()
 }
 
 // Use attaches a global middleware to the router. ie. the middleware attached though Use() will be
 // included in the handlers chain for every single request. Even 404, 405, static files...
 // For example, this is the right place for a logger or error management middleware.
-func (engine *Engine) Use(middleware ...ctx.HandlerFunc) IRoutes {
-	engine.RouterGroup.Use(middleware...)
-	engine.rebuild404Handlers()
-	engine.rebuild405Handlers()
-	return engine
+func (server *HttpServer) Use(middleware ...ctx.HandlerFunc) IRoutes {
+	server.RouterGroup.Use(middleware...)
+	server.rebuild404Handlers()
+	server.rebuild405Handlers()
+	return server
 }
 
-func (engine *Engine) rebuild404Handlers() {
-	engine.allNoRoute = engine.combineHandlers(engine.noRoute)
+func (server *HttpServer) rebuild404Handlers() {
+	server.noRoute = server.combineHandlers(server.noRoute)
 }
 
-func (engine *Engine) rebuild405Handlers() {
-	engine.allNoMethod = engine.combineHandlers(engine.noMethod)
+func (server *HttpServer) rebuild405Handlers() {
+	server.noMethod = server.combineHandlers(server.noMethod)
 }
 
-func (engine *Engine) addRoute(method, path string, handlers ctx.HandlersChain) {
-	root := engine.trees.Get(method)
-	if root == nil {
-		root = new(router.Node)
-		root.FullPath = "/"
-		engine.trees = append(engine.trees, router.MethodTree{Method: method, ROOT: root})
-	}
-	root.AddRoute(path, handlers)
+func (server *HttpServer) addRoute(method, path string, handlers ctx.HandlersChain) {
+	server.route.AddHandler(method, path, handlers)
 }
 
 // Run attaches the router to a http.Server and starts listening and serving HTTP requests.
 // It is a shortcut for http.ListenAndServe(addr, router)
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
-func (engine *Engine) Run(addr ...string) (err error) {
+func (server *HttpServer) Run(addr ...string) (err error) {
 	defer func() {}()
 
-	address := utils.ResolveAddress(addr)
+	address := ResolveAddress(addr)
 	log.Printf("Listening and serving HTTP on %s\n", address)
-	err = http.ListenAndServe(address, engine)
+	err = http.ListenAndServe(address, server)
 	return
 }
 
 // RunTLS attaches the router to a http.Server and starts listening and serving HTTPS (secure) requests.
 // It is a shortcut for http.ListenAndServeTLS(addr, certFile, keyFile, router)
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
-func (engine *Engine) RunTLS(addr, certFile, keyFile string) (err error) {
+func (server *HttpServer) RunTLS(addr, certFile, keyFile string) (err error) {
 	log.Fatalf("Listening and serving HTTPS on %s\n", addr)
 	defer func() { log.Println(err) }()
 
-	err = http.ListenAndServeTLS(addr, certFile, keyFile, engine)
+	err = http.ListenAndServeTLS(addr, certFile, keyFile, server)
 	return
 }
 
 // RunUnix attaches the router to a http.Server and starts listening and serving HTTP requests
 // through the specified unix socket (ie. a file).
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
-func (engine *Engine) RunUnix(file string) (err error) {
+func (server *HttpServer) RunUnix(file string) (err error) {
 	log.Printf("Listening and serving HTTP on unix:/%s", file)
 	defer func() { log.Println(err) }()
 
@@ -155,14 +134,14 @@ func (engine *Engine) RunUnix(file string) (err error) {
 	}
 	defer listener.Close()
 	os.Chmod(file, 0777)
-	err = http.Serve(listener, engine)
+	err = http.Serve(listener, server)
 	return
 }
 
 // RunFd attaches the router to a http.Server and starts listening and serving HTTP requests
 // through the specified file descriptor.
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
-func (engine *Engine) RunFd(fd int) (err error) {
+func (server *HttpServer) RunFd(fd int) (err error) {
 	log.Printf("Listening and serving HTTP on fd@%d", fd)
 	defer func() { log.Println(err) }()
 
@@ -172,12 +151,12 @@ func (engine *Engine) RunFd(fd int) (err error) {
 		return
 	}
 	defer listener.Close()
-	err = http.Serve(listener, engine)
+	err = http.Serve(listener, server)
 	return
 }
 
 // ServeHTTP conforms to the http.Handler interface.
-func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (server *HttpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c := &ctx.Context{
 		Index: -1,
 		Err:   &errs.Error{},
@@ -185,35 +164,38 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	c.Request = req
 	c.Writer = w
+	c.SetJSONFrame()
 
-	engine.handleHTTPRequest(c)
+	server.handleHTTPRequest(c)
 
 }
 
-func (engine *Engine) handleHTTPRequest(c *ctx.Context) {
+func (server *HttpServer) handleHTTPRequest(c *ctx.Context) {
 	httpMethod := c.Request.Method
 	rPath := c.Request.URL.Path
-	unescape := false
 
-	// Find root of the tree for the given HTTP method
-	t := engine.trees
-	for i, tl := 0, len(t); i < tl; i++ {
-		if t[i].Method != httpMethod {
-			continue
+	handlers := server.route.GetHandler(httpMethod, rPath)
+	if handlers == nil {
+		c.Handlers = server.noRoute
+	} else {
+		c.Handlers = handlers
+	}
+	c.Next()
+}
+
+func ResolveAddress(addr []string) string {
+	switch len(addr) {
+	case 0:
+		if port := os.Getenv("PORT"); port != "" {
+			log.Printf("Environment variable PORT=\"%s\"", port)
+			return ":" + port
 		}
-		root := t[i].ROOT
-		// Find route in tree
-		var params ctx.Params
-		value := root.GetValue(rPath, params, unescape)
-		if value.Handlers != nil {
-			c.Handlers = value.Handlers
-			c.Params = value.Params
-			c.SetFullPath(value.FullPath)
-			c.Next()
-			return
-		}
-		break
+		log.Println("Environment variable PORT is undefined. Using port :8080 by default")
+		return ":8080"
+	case 1:
+		return addr[0]
+	default:
+		panic("too many parameters")
 	}
 
-	c.Handlers = engine.allNoRoute
 }

@@ -6,7 +6,7 @@ package sanhttp
 
 import (
 	"github.com/hillguo/sanhttp/ctx"
-	"github.com/hillguo/sanhttp/utils"
+	"path"
 	"regexp"
 )
 
@@ -37,7 +37,7 @@ type IRoutes interface {
 type RouterGroup struct {
 	Handlers ctx.HandlersChain
 	basePath string
-	engine   *Engine
+	server   *HttpServer
 	root     bool
 }
 
@@ -55,7 +55,7 @@ func (group *RouterGroup) Group(relativePath string, handlers ...ctx.HandlerFunc
 	return &RouterGroup{
 		Handlers: group.combineHandlers(handlers),
 		basePath: group.calculateAbsolutePath(relativePath),
-		engine:   group.engine,
+		server:   group.server,
 	}
 }
 
@@ -68,7 +68,7 @@ func (group *RouterGroup) BasePath() string {
 func (group *RouterGroup) handle(httpMethod, relativePath string, handlers ctx.HandlersChain) IRoutes {
 	absolutePath := group.calculateAbsolutePath(relativePath)
 	handlers = group.combineHandlers(handlers)
-	group.engine.addRoute(httpMethod, absolutePath, handlers)
+	group.server.addRoute(httpMethod, absolutePath, handlers)
 	return group.returnObj()
 }
 
@@ -151,12 +151,32 @@ func (group *RouterGroup) combineHandlers(handlers ctx.HandlersChain) ctx.Handle
 }
 
 func (group *RouterGroup) calculateAbsolutePath(relativePath string) string {
-	return utils.JoinPaths(group.basePath, relativePath)
+	return JoinPaths(group.basePath, relativePath)
 }
 
 func (group *RouterGroup) returnObj() IRoutes {
 	if group.root {
-		return group.engine
+		return group.server
 	}
 	return group
+}
+
+func lastChar(str string) uint8 {
+	if str == "" {
+		panic("The length of the string can't be 0")
+	}
+	return str[len(str)-1]
+}
+
+func JoinPaths(absolutePath, relativePath string) string {
+	if relativePath == "" {
+		return absolutePath
+	}
+
+	finalPath := path.Join(absolutePath, relativePath)
+	appendSlash := lastChar(relativePath) == '/' && lastChar(finalPath) != '/'
+	if appendSlash {
+		return finalPath + "/"
+	}
+	return finalPath
 }

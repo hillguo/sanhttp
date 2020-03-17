@@ -1,0 +1,10 @@
+syntax="proto3";
+
+message TestReq {
+    string a = 1;
+    string b = 2;
+}
+
+message TestResp {
+    string c = 3;
+}

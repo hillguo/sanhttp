@@ -1,0 +1,30 @@
+syntax="proto3";
+package test;
+
+option go_package = "main";
+
+message TestReq {
+    string uin = 1;
+    uint64 vid = 2;
+    repeated uint32 ids = 3;
+}
+
+message TestRsp {
+    uint64 vid = 1;
+    bool ok = 2;
+}
+
+message GetVidByNameReq {
+    string name = 1;
+    string type = 2;
+}
+
+message GetVidByNameRsp {
+    uint64 vid = 1;
+}
+
+
+service Test {
+    rpc Test(TestReq) returns(TestRsp){}
+    rpc GetVidByName(GetVidByNameReq) returns(GetVidByNameRsp){}
+}
