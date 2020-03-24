@@ -1,6 +1,8 @@
 package route
 
 import (
+	"strings"
+
 	"github.com/hillguo/sanhttp/ctx"
 )
 
@@ -13,6 +15,8 @@ type Route struct {
 }
 
 func (r *Route) AddHandler(method, path string, handlers ctx.HandlersChain) {
+	method = strings.ToLower(method)
+	path = strings.ToLower(path)
 	if r == nil {
 		r = &Route{}
 	}
@@ -29,9 +33,11 @@ func (r *Route) AddHandler(method, path string, handlers ctx.HandlersChain) {
 	}
 }
 
-func (r *Route) GetHandler(method, url string) ctx.HandlersChain {
+func (r *Route) GetHandler(method, path string) ctx.HandlersChain {
+	method = strings.ToLower(method)
+	path = strings.ToLower(path)
 	if pathHandler, ok := r.routes[method]; ok {
-		return pathHandler[url]
+		return pathHandler[path]
 	}
 	return nil
 }
