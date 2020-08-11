@@ -2,15 +2,15 @@ package sanhttp
 
 import (
 	"encoding/json"
-	"github.com/hillguo/sanhttp/ctx"
-	"github.com/hillguo/sanhttp/errs"
 	"log"
 	"reflect"
+
+	"github.com/hillguo/sanhttp/ctx"
+	"github.com/hillguo/sanhttp/errs"
 )
 
+type ProcessFunc func(c *ctx.Context)
 
-
-type ProcessFunc func(c *ctx.Context, )
 // 对handler 进行包装
 func HF(method interface{}) ctx.HandlerFunc {
 	typ := reflect.TypeOf(method)
@@ -52,23 +52,22 @@ func HF(method interface{}) ctx.HandlerFunc {
 
 	return func(c *ctx.Context) {
 
-		req  := reflect.New(reqType.Elem()).Interface()
+		req := reflect.New(reqType.Elem()).Interface()
 		resp := reflect.New(rspType.Elem()).Interface()
 		if c.ContentType() == "application/json" {
 			data, _ := c.GetRawData()
 			json.Unmarshal(data, req)
 		}
 
-		returnValues := typVal.Call([]reflect.Value{ reflect.ValueOf(c), reflect.ValueOf(req), reflect.ValueOf(resp)})
-
+		returnValues := typVal.Call([]reflect.Value{reflect.ValueOf(c), reflect.ValueOf(req), reflect.ValueOf(resp)})
 
 		err := returnValues[0].Interface()
 		header := errs.NewSuccess()
 		param := &ctx.Param{LogicsvrIP: c.Request.RemoteAddr}
 		if err != nil {
-			if e, ok := err.(*errs.Error) ; ok {
+			if e, ok := err.(*errs.Error); ok {
 				header = e
-			} else if e, ok := err.(error) ; ok {
+			} else if e, ok := err.(error); ok {
 				header = errs.New(errs.ErrorUnKnow, e.Error())
 			} else {
 				log.Print("returnValue type error ", reflect.TypeOf(err).Name())
@@ -81,8 +80,8 @@ func HF(method interface{}) ctx.HandlerFunc {
 		} else if c.GetFrameType() == ctx.ProtoBufFrame {
 			c.ProtoBuf(200, resp)
 		} else {
-			retval := ctx.HTTPBody{Header:header,Param_:param, Data:resp}
-			c.IndentedJSON(200,retval)
+			retval := ctx.HTTPBody{Header: header, Param_: param, Data: resp}
+			c.IndentedJSON(200, retval)
 		}
 	}
 }

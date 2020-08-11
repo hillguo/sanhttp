@@ -56,21 +56,19 @@ type Context struct {
 	// Errors is a list of errors attached to all the handlers/middlewares who used this context.
 	Err *errs.Error
 
-
 	frameType FrameType
-
 }
 
 type HTTPBody struct {
-	Header *errs.Error  `json:"header,omitempty"`
-	Param_ *Param		`json:"param,omitempty"`
-	Data interface{}    `json:"data,omitempty"`
+	Header *errs.Error `json:"header,omitempty"`
+	Param_ *Param      `json:"param,omitempty"`
+	Data   interface{} `json:"data,omitempty"`
 }
 
 type Param struct {
-	RequestTime uint64  `json:"request_time,omitempty"`
-	LogicsvrIP string   `json:"logicsvrip,omitempty"`
-	CostTime uint32		`json:"cost_time,omitempty"`
+	RequestTime uint64 `json:"request_time,omitempty"`
+	LogicsvrIP  string `json:"logicsvrip,omitempty"`
+	CostTime    uint32 `json:"cost_time,omitempty"`
 }
 
 type FrameType uint32
@@ -81,19 +79,19 @@ const (
 	ProtoBufFrame
 )
 
-func (c *Context) SetRawFrame(){
+func (c *Context) SetRawFrame() {
 	c.frameType = RawFrame
 }
 
-func (c *Context) SetJSONFrame(){
+func (c *Context) SetJSONFrame() {
 	c.frameType = JSONFrame
 }
 
-func (c *Context) SetPBFrame(){
+func (c *Context) SetPBFrame() {
 	c.frameType = ProtoBufFrame
 }
 
-func (c *Context) GetFrameType() FrameType{
+func (c *Context) GetFrameType() FrameType {
 	return c.frameType
 }
 
@@ -392,7 +390,7 @@ func (c *Context) ClientIP() string {
 
 // ContentType returns the Content-Type header of the request.
 func (c *Context) ContentType() string {
-	return filterFlags(c.RequestHeader("Content-Type"))
+	return c.RequestHeader("Content-Type")
 }
 
 // IsWebsocket returns true if the request headers indicate that a websocket
@@ -412,19 +410,6 @@ func (c *Context) RequestHeader(key string) string {
 /************************************/
 /******** RESPONSE RENDERING ********/
 /************************************/
-
-// bodyAllowedForStatus is a copy of http.bodyAllowedForStatus non-exported function.
-func bodyAllowedForStatus(status int) bool {
-	switch {
-	case status >= 100 && status <= 199:
-		return false
-	case status == http.StatusNoContent:
-		return false
-	case status == http.StatusNotModified:
-		return false
-	}
-	return true
-}
 
 // Status sets the HTTP response code.
 func (c *Context) Status(code int) {
@@ -487,10 +472,6 @@ func (c *Context) Cookie(name string) (string, error) {
 func (c *Context) Render(code int, r render.Render) {
 	c.Status(code)
 
-	if !bodyAllowedForStatus(code) {
-		return
-	}
-
 	if err := r.Render(c.Writer); err != nil {
 		panic(err)
 	}
@@ -548,18 +529,8 @@ func (c *Context) File(filepath string) {
 	http.ServeFile(c.Writer, c.Request, filepath)
 }
 
-// FileAttachment writes the specified file into the body stream in an efficient way
-// On the client side, the file will typically be downloaded with the given filename
+// FileAttachment ...
 func (c *Context) FileAttachment(filepath, filename string) {
 	c.Writer.Header().Set("content-disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	http.ServeFile(c.Writer, c.Request, filepath)
-}
-
-func filterFlags(content string) string {
-	for i, char := range content {
-		if char == ' ' || char == ';' {
-			return content[:i]
-		}
-	}
-	return content
 }

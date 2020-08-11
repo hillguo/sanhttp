@@ -5,9 +5,9 @@
 package sanhttp
 
 import (
-	"github.com/hillguo/sanhttp/ctx"
 	"path"
-	"regexp"
+
+	"github.com/hillguo/sanhttp/ctx"
 )
 
 // IRouter defines all router handle interface includes single and group router.
@@ -29,7 +29,6 @@ type IRoutes interface {
 	PUT(string, ...ctx.HandlerFunc) IRoutes
 	OPTIONS(string, ...ctx.HandlerFunc) IRoutes
 	HEAD(string, ...ctx.HandlerFunc) IRoutes
-
 }
 
 // RouterGroup is used internally to configure router, a RouterGroup is associated with
@@ -37,7 +36,7 @@ type IRoutes interface {
 type RouterGroup struct {
 	Handlers ctx.HandlersChain
 	basePath string
-	server   *HttpServer
+	server   *HTTPServer
 	root     bool
 }
 
@@ -83,9 +82,6 @@ func (group *RouterGroup) handle(httpMethod, relativePath string, handlers ctx.H
 // frequently used, non-standardized or custom methods (e.g. for internal
 // communication with a proxy).
 func (group *RouterGroup) Handle(httpMethod, relativePath string, handlers ...ctx.HandlerFunc) IRoutes {
-	if matches, err := regexp.MatchString("^[A-Z]+$", httpMethod); !matches || err != nil {
-		panic("http method " + httpMethod + " is not valid")
-	}
 	return group.handle(httpMethod, relativePath, handlers)
 }
 
