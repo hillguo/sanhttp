@@ -57,7 +57,7 @@ func genmain(protoInfo *gencode.ProtoFileInfo) []gencode.FileNameData {
 	for _, v := range protoInfo.Methods {
 		buf.Reset()
 		handlerTmpl.Execute(&buf, v)
-		flienamedata = append(flienamedata, gencode.FileNameData{Name: strings.ToLower(v.MethodName) + "_handler.go", Data: buf.String()})
+		flienamedata = append(flienamedata, gencode.FileNameData{Name:"handler_"+ strings.ToLower(v.MethodName) + ".go", Data: buf.String()})
 	}
 	return flienamedata
 }

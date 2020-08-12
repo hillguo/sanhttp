@@ -51,7 +51,7 @@ func HF(method interface{}) ctx.HandlerFunc {
 	}
 
 	return func(c *ctx.Context) {
-
+		c.SetJSONFrame()
 		req := reflect.New(reqType.Elem()).Interface()
 		resp := reflect.New(rspType.Elem()).Interface()
 		if c.ContentType() == "application/json" {
