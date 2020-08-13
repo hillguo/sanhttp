@@ -2,16 +2,15 @@ package sanhttp
 
 import (
 	"encoding/json"
-	"log"
 	"reflect"
+
+	log "github.com/hillguo/sanlog"
 
 	"github.com/hillguo/sanhttp/ctx"
 	"github.com/hillguo/sanhttp/errs"
 )
 
-type ProcessFunc func(c *ctx.Context)
-
-// 对handler 进行包装
+// HF 对handler 进行包装
 func HF(method interface{}) ctx.HandlerFunc {
 	typ := reflect.TypeOf(method)
 	typVal := reflect.ValueOf(method)
@@ -27,8 +26,8 @@ func HF(method interface{}) ctx.HandlerFunc {
 	// First arg must be context.Context
 	ctxType := typ.In(0)
 	if ctxType != reflect.TypeOf((*ctx.Context)(nil)) {
-		log.Print("%+v", ctxType)
-		log.Print(reflect.TypeOf((*ctx.Context)(nil)).Elem())
+		log.Infof("%+v", ctxType)
+		log.Info(reflect.TypeOf((*ctx.Context)(nil)).Elem())
 		log.Fatalf("func %v", typName, " must use *ctx.Context as the first parameter")
 	}
 
@@ -56,10 +55,15 @@ func HF(method interface{}) ctx.HandlerFunc {
 		resp := reflect.New(rspType.Elem()).Interface()
 		if c.ContentType() == "application/json" {
 			data, _ := c.GetRawData()
-			json.Unmarshal(data, req)
+			err := json.Unmarshal(data, req)
+			if err != nil {
+				log.Errorf("json unmarshal req body %s error:%s", string(data), err.Error())
+			}
 		}
 
+		log.Debugf("sanhttp req: %v", req)
 		returnValues := typVal.Call([]reflect.Value{reflect.ValueOf(c), reflect.ValueOf(req), reflect.ValueOf(resp)})
+		log.Debugf("sanhttp resp: %v", resp)
 
 		err := returnValues[0].Interface()
 		header := errs.NewSuccess()
@@ -70,7 +74,7 @@ func HF(method interface{}) ctx.HandlerFunc {
 			} else if e, ok := err.(error); ok {
 				header = errs.New(errs.ErrorUnKnow, e.Error())
 			} else {
-				log.Print("returnValue type error ", reflect.TypeOf(err).Name())
+				log.Error("returnValue type error ", reflect.TypeOf(err).Name())
 				header = errs.NewFrameError(errs.ErrorUnKnow, "returnValue type error")
 			}
 		}
@@ -80,7 +84,7 @@ func HF(method interface{}) ctx.HandlerFunc {
 		} else if c.GetFrameType() == ctx.ProtoBufFrame {
 			c.ProtoBuf(200, resp)
 		} else {
-			retval := ctx.HTTPBody{Header: header, Param_: param, Data: resp}
+			retval := ctx.HTTPBody{Header: header, Param: param, Data: resp}
 			c.IndentedJSON(200, retval)
 		}
 	}

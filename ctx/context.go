@@ -61,7 +61,7 @@ type Context struct {
 
 type HTTPBody struct {
 	Header *errs.Error `json:"header,omitempty"`
-	Param_ *Param      `json:"param,omitempty"`
+	Param  *Param      `json:"param,omitempty"`
 	Data   interface{} `json:"data,omitempty"`
 }
 

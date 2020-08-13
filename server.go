@@ -5,8 +5,9 @@
 package sanhttp
 
 import (
-	"log"
 	"net/http"
+
+	log "github.com/hillguo/sanlog"
 
 	"github.com/hillguo/sanhttp/ctx"
 	"github.com/hillguo/sanhttp/errs"
@@ -93,7 +94,7 @@ func (server *HTTPServer) addRoute(method, path string, handlers ctx.HandlersCha
 func (server *HTTPServer) Run(addr string) (err error) {
 	defer func() {}()
 
-	log.Printf("Listening and serving HTTP on %s\n", addr)
+	log.Infof("Listening and serving HTTP on %s\n", addr)
 	err = http.ListenAndServe(addr, server)
 	return
 }
@@ -101,7 +102,7 @@ func (server *HTTPServer) Run(addr string) (err error) {
 // RunTLS attaches the router to a http.Server and starts listening and serving HTTPS (secure) requests.
 func (server *HTTPServer) RunTLS(addr, certFile, keyFile string) (err error) {
 	log.Fatalf("Listening and serving HTTPS on %s\n", addr)
-	defer func() { log.Println(err) }()
+	defer func() { log.Info(err) }()
 
 	err = http.ListenAndServeTLS(addr, certFile, keyFile, server)
 	return
